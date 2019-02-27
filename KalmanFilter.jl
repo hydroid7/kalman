@@ -53,7 +53,7 @@ function predict(k::Kalman)
 #    k.Σ = Σ_next(k.A, k.Σ, gain, k.G, k.Q)
 #    Normal(k.x̂, k.Σ)
     k.x̂ = k.A * k.x̂
-    k.Σ = k.A * k.Σ + k.Q
+    k.Σ = k.A * k.Σ * t(k.A) + k.Q
     # Normal(k.x̂, k.Σ)
 end
 
