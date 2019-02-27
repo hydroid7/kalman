@@ -1,6 +1,6 @@
 module KalmanFilter
 
-using LinearAlgebra, Distributions
+using LinearAlgebra, Distributions, Printf
 
 export Kalman, fusion, predict, K
 
@@ -35,25 +35,34 @@ end
 """
 Compute the filtered distribution.
 """
-function fusion(k::Kalman, y)
+function fusion(k::Kalman, y, print = false)
     # k.x̂ = x̂_F(k.x̂, y, k.Σ, k.G, k.R)
     # k.Σ = Σ_F(k.Σ, k.G, k.R)
     # Normal(k.x̂, k.Σ)
+
     gain = K(k.Σ, k.G, k.R)
     k.x̂ = k.x̂ + gain * (y - k.G * k.x̂)
-    k.Σ = (I - gain * k.G) * k.Σ
+    k.Σ = (I - gain * k.G) * k.Σ * t(I - gain * k.G) + gain * k.R * t(gain)
+    if print
+        @printf "Fusion:  x̂ %2.3f    Σ %2.3f    K %.3f\n" gain k.x̂ k.Σ
+    end
+    k.x̂
 end
 
 """
 Predict next state.
 """
-function predict(k::Kalman)
+function predict(k::Kalman, print = false)
 #    gain = K(k.A, k.Σ, k.G, k.R)
 #    k.x̂ = x̂_next(k.A, k.x̂, gain, y, k.G)
 #    k.Σ = Σ_next(k.A, k.Σ, gain, k.G, k.Q)
 #    Normal(k.x̂, k.Σ)
     k.x̂ = k.A * k.x̂
     k.Σ = k.A * k.Σ * t(k.A) + k.Q
+    if print
+        @printf "Predict: x̂ %.3f    Σ %.3f\n" k.x̂ k.Σ
+    end
+    k.x̂
     # Normal(k.x̂, k.Σ)
 end
 
