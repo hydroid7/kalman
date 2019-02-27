@@ -13,6 +13,11 @@ mutable struct Kalman
 
     x̂ # Current estimate mean
     Σ # Current estimate uncertianty
+
+    B # Control signal mapping matrix
+    u # Control signal
+
+    Kalman(A, Q, G, R, x̂, Σ) = new(A, Q, G, R, x̂, Σ, I, 1)
 end
 
 t = (m) -> transpose(m) # Sorthand for transpose
