@@ -35,7 +35,7 @@ end
 """
 Compute the filtered distribution.
 """
-function fusion(k::Kalman, y, print = false)
+function fusion(k::Kalman, y; print = false)
     # k.x̂ = x̂_F(k.x̂, y, k.Σ, k.G, k.R)
     # k.Σ = Σ_F(k.Σ, k.G, k.R)
     # Normal(k.x̂, k.Σ)
@@ -52,7 +52,7 @@ end
 """
 Predict next state.
 """
-function predict(k::Kalman, print = false)
+function predict(k::Kalman; print = false)
 #    gain = K(k.A, k.Σ, k.G, k.R)
 #    k.x̂ = x̂_next(k.A, k.x̂, gain, y, k.G)
 #    k.Σ = Σ_next(k.A, k.Σ, gain, k.G, k.Q)
