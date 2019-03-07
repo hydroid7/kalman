@@ -17,6 +17,7 @@ mutable struct Kalman
     B # Control signal mapping matrix
     u # Control signal
 
+    Kalman(A, Q, G, R, x̂, Σ, B, u) = new(A, Q, G, R, x̂, Σ, B, u)
     Kalman(A, Q, G, R, x̂, Σ) = new(A, Q, G, R, x̂, Σ, I, 1)
 end
 
