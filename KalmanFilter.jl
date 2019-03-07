@@ -29,6 +29,8 @@ function K(Σ, G, R)
 end
 
 """
+    fusion(k::Kalman, y, [print = false])
+
 Compute the filtered distribution.
 """
 function fusion(k::Kalman, y, print = false)
@@ -42,10 +44,27 @@ function fusion(k::Kalman, y, print = false)
 end
 
 """
-Predict next state.
+    predict(k::Kalman[, print = false])
+
+Predict next state without control signal.
 """
 function predict(k::Kalman, print = false)
     k.x̂ = k.A * k.x̂
+    k.Σ = k.A * k.Σ * transpose(k.A) + k.Q
+    if print
+        @printf "Predict: x̂ %.3f    Σ %.3f\n" k.x̂ k.Σ
+    end
+    (state=k.x̂, cov=k.Σ)
+end
+
+"""
+    predict(k::Kalman, u[, print = false])
+
+Next prediction if there is a control signal.
+Optional parameter print for debugging.
+"""
+function predict(k::Kalman, u, print = false)
+    k.x̂ = k.A * k.x̂ + k.B * u
     k.Σ = k.A * k.Σ * transpose(k.A) + k.Q
     if print
         @printf "Predict: x̂ %.3f    Σ %.3f\n" k.x̂ k.Σ
