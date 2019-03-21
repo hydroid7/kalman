@@ -13,22 +13,24 @@ macro loop(ex)
     end
 end
 
-struct Accelerometer
-    x
-    y
-    z
+struct Vector3
+    x::Number
+    y::Number
+    z::Number
+end
+Vector3(dict::Dict) = Vector3(dict["x"], dict["y"], dict["z"])
+
+struct GPS
+    lat
+    lon
 end
 
-struct Gyroskope
-    x
-    y
-    z
-end
-
-struct Magnetic
-    x
-    y
-    z
+function getOrDefault(array, default)
+    if length(array) == 1
+        array[1]
+    else
+        default
+    end
 end
 
 calculatePosition(acceleration, time, vPrev) = vPrev + 1//2 * acceleration * time^2
@@ -44,16 +46,57 @@ function takeInput!(to::Channel)
 end
 
 function parseInput!(from::Channel, to::Channel)
+    prev = (timestamp = 0.0, accelerometer = Vector3(0, 0, 0), gyro = Vector3(0, 0, 0), magneto = Vector3(0, 0, 0))
     @async @loop begin
         data = take!(from)
-        data = "(" * data
-        data = replace(data, ", 3, " => ", Accelerometer(")
-        data = replace(data, ", 4, " => "), Gyroskope(")
-        data = replace(data, ", 5," => "), Magnetic(")
-        data = data * "))"
-        # (Timestamp(7691.43761), Accelerometer(-0.067, -0.062, 9.73), Gyroskope(-0.0, 0.001, 0.001), Magnetic(43.9, -12.3, -117.0))
-        row = eval(Meta.parse(data))
-        put!(to, row)
+        # Generate Tuple from incoming data
+        data = "[" * data[1:end-2] * "]"
+        data = JSON.parse(data)
+        timestamp = data[1]
+        data = data[2:end]
+        # Accelerometer
+        accelerometer = filter(x -> x["sensor_id"] == "accelerometer", data)
+        @show accelerometer
+        if length(accelerometer) == 1
+            accelerometer = Vector3(accelerometer[1])
+        else
+            accelerometer = missing
+        end
+
+        # Gyroskope
+        gyro = filter(x -> x["sensor_id"] == "gyroskope", data)
+        if length(gyro) == 1
+            gyro = Vector3(gyro[1])
+        else
+            gyro = missing
+        end
+
+        # Magnetometer
+        magneto = filter(x -> x["sensor_id"] == "magnetometer", data)
+        if length(magneto) == 1
+            magneto = Vector3(magneto[1])
+        else
+            magneto = missing
+        end
+
+        # The result is a named tuple with all values
+        result = (timestamp = timestamp, accelerometer = accelerometer, gyro = gyro, magneto = magneto)
+        prev = result
+        @show result
+        put!(to, result)
+    end
+end
+
+function calculateInput!(from::Channel, to::Channel)
+    @async @loop begin
+        task = take!(from)
+        # TODO Calculate Kalman
+        out = Dict(
+            "timestamp" => task[1],
+            "position" => Dict("x" => 1, "y" => 2, "z" => 3)
+        )
+        prevLine = task
+        put!(to, out)
     end
 end
 
@@ -66,20 +109,6 @@ function sendToRenderer!(from::Channel, bindPort::Int64)
     end
 end
 
-function calculatingChannel(from::Channel, to::Channel)
-    @async begin
-        local prevLine = fetch(from)
-        @loop begin
-            task = take!(from)
-
-            # TODO Calculate Kalman
-
-            prevLine = task
-            put!(to, out)
-        end
-    end
-end
-
 inputChanel = Channel(16) # Receives the input
 parsedChannel = Channel(16) # Receives parsed data
 outputChannel = Channel(16) # It's content is pushed to the rust server.
@@ -87,9 +116,7 @@ calculatingChannel = Channel(16)
 
 takeInput!(inputChanel)
 parseInput!(inputChanel, calculatingChannel)
-calculateInput!(calculatingChannel, outputChannel)
-sendToRenderer!(outputChannel, 2000)
+# calculateInput!(calculatingChannel, outputChannel)
+# sendToRenderer!(outputChannel, 2000)
 
-while running
-    sleep(10)
-end
+@loop sleep(10)

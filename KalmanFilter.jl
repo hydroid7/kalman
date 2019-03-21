@@ -36,7 +36,6 @@ Compute a complete Kalman Step.
 """
 function next(k::Kalman, y)
     newInstance = deepcopy(k)
-    @show k
     p = predict(newInstance).state
     f = fusion(newInstance, y)
     (model = newInstance, fusioned = f.state, predicted = p, gain = f.gain)
@@ -47,13 +46,10 @@ end
 
 Compute the filtered distribution.
 """
-function fusion(k::Kalman, y, print = false)
+function fusion(k::Kalman, y)
     g = K(k.Σ, k.G, k.R)
     k.x̂ = k.x̂ + g * (y - k.G * k.x̂)
     k.Σ = (I - g * k.G) * k.Σ * transpose(I - g * k.G) + g * k.R * transpose(g)
-    if print
-        @printf "Fusion:  x̂ %2.3f    Σ %2.3f    K %.3f\n" gain k.x̂ k.Σ
-    end
     (state=k.x̂, cov=k.Σ, gain=g)
 end
 
@@ -62,12 +58,9 @@ end
 
 Predict next state without control signal.
 """
-function predict(k::Kalman, print = false)
+function predict(k::Kalman)
     k.x̂ = k.A * k.x̂
     k.Σ = k.A * k.Σ * transpose(k.A) + k.Q
-    if print
-        @printf "Predict: x̂ %.3f    Σ %.3f\n" k.x̂ k.Σ
-    end
     (state=k.x̂, cov=k.Σ)
 end
 
