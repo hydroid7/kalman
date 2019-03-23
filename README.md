@@ -1,6 +1,10 @@
 # kalman
 Implementation of the Kalman Filter Algorithm in Julia.
 ---
+
+If you only want the implementation, it is the `KalmanFilter.jl`.
+Otherwise still feel free to experiment with the data.
+
 To run the examples  `julia` is needed.
 ```julia
 $ git clone https://github.com/hydroid7/kalman
