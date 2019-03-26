@@ -7,16 +7,12 @@ export Kalman, fusion, predict, K, next
 mutable struct Kalman
     A # State transition
     Q # Process covariance matrix
-
     G # Measurement mapping
     R # Measurement covariance matrix
-
     x̂ # Current estimate mean
     Σ # Current estimate uncertianty
-
     B # Control signal mapping matrix
     u # Control signal
-
     Kalman(A, Q, G, R, x̂, Σ, B, u) = new(A, Q, G, R, x̂, Σ, B, u)
     Kalman(A, Q, G, R, x̂, Σ) = new(A, Q, G, R, x̂, Σ, I, I)
 end
@@ -63,20 +59,5 @@ function predict(k::Kalman)
     k.Σ = k.A * k.Σ * transpose(k.A) + k.Q
     (state=k.x̂, cov=k.Σ)
 end
-
-# """
-#     predict(k::Kalman, u[, print = false])
-#
-# Next prediction if there is a control signal.
-# Optional parameter print for debugging.
-# """
-# function predict(k::Kalman, u, print = false)
-#     k.x̂ = k.A * k.x̂ + k.B * u
-#     k.Σ = k.A * k.Σ * transpose(k.A) + k.Q
-#     if print
-#         @printf "Predict: x̂ %.3f    Σ %.3f\n" k.x̂ k.Σ
-#     end
-#     (state=k.x̂, cov=k.Σ)
-# end
 
 end
