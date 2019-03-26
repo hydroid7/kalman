@@ -21,3 +21,4 @@ $ julia
 julia> using IJulia
 juila> notebook(dir = pwd())
 ```
+You will find folders with number prefix. Open them and run the exercises.
