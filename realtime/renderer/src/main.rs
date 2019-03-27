@@ -54,6 +54,7 @@ fn main() {
         match message {
             Ok(message) => {
                 c.set_local_translation(message.to_translation());
+                //c.append_translation(&message.to_translation());
                 println!("{:?}", message)
             },
             Err(reason) => println!("{:?}", reason)

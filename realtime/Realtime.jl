@@ -1,4 +1,6 @@
-using Sockets, JSON
+include("../KalmanFilter.jl")
+
+using Sockets, JSON, .KalmanFilter, LinearAlgebra
 
 """
     @loop expression
@@ -20,11 +22,6 @@ struct Vector3
 end
 Vector3(dict::Dict) = Vector3(dict["x"], dict["y"], dict["z"])
 
-struct GPS
-    lat
-    lon
-end
-
 function getOrDefault(array, default)
     if length(array) == 1
         array[1]
@@ -33,12 +30,35 @@ function getOrDefault(array, default)
     end
 end
 
-calculatePosition(acceleration, time, vPrev) = vPrev + 1//2 * acceleration * time^2
+function calculateKalman(Δ_t, prev_model::Kalman, acc::Vector3)
+    A = [1 0 Δ_t 0 0.5*Δ_t^2 0;
+         0 1 0 Δ_t 0 0.5*Δ_t^2;
+         0 0 1 0 Δ_t 0;
+         0 0 0 1 0 Δ_t;
+         0 0 0 0 1 0;
+         0 0 0 0 0 1]
+
+    G = [0 0 0 0 1 0;
+         0 0 0 0 0 1]
+
+    R = [0.1 0;
+         0 0.1]
+
+    Q = I * 0.2
+
+    if (abs(acc.x) + abs(acc.y) + abs(acc.z)) < .3
+        return (model = model, position = Vector3(f[6], f[5], 0))
+    end
+
+    newModel = Kalman(A, Q, G, R, prev_model.x̂, prev_model.Σ)
+    (model, f, p, g) = next(newModel, [acc.x; acc.y])
+    (model = model, position = Vector3(f[6], f[5], 0))
+end
 
 function takeInput!(to::Channel)
     @async begin
         udpsock = UDPSocket()
-        bind(udpsock,ip"192.168.178.25", 5555)
+        bind(udpsock, ip"192.168.178.25", 5555)
         @loop begin
             put!(to, String(recv(udpsock)))
         end
@@ -49,53 +69,30 @@ function parseInput!(from::Channel, to::Channel)
     prev = (timestamp = 0.0, accelerometer = Vector3(0, 0, 0), gyro = Vector3(0, 0, 0), magneto = Vector3(0, 0, 0))
     @async @loop begin
         data = take!(from)
-        # Generate Tuple from incoming data
-        data = "[" * data[1:end-2] * "]"
-        data = JSON.parse(data)
-        timestamp = data[1]
-        data = data[2:end]
-        # Accelerometer
-        accelerometer = filter(x -> x["sensor_id"] == "accelerometer", data)
-        @show accelerometer
-        if length(accelerometer) == 1
-            accelerometer = Vector3(accelerometer[1])
-        else
-            accelerometer = missing
+        data = strip.(split(data, ","))
+        timestamp = time()
+        if data[2] == "3"
+            accelerometer = Vector3(parse(Float64, data[3]), parse(Float64, data[4]), parse(Float64, data[5]))
         end
-
-        # Gyroskope
-        gyro = filter(x -> x["sensor_id"] == "gyroskope", data)
-        if length(gyro) == 1
-            gyro = Vector3(gyro[1])
-        else
-            gyro = missing
-        end
-
-        # Magnetometer
-        magneto = filter(x -> x["sensor_id"] == "magnetometer", data)
-        if length(magneto) == 1
-            magneto = Vector3(magneto[1])
-        else
-            magneto = missing
-        end
-
-        # The result is a named tuple with all values
-        result = (timestamp = timestamp, accelerometer = accelerometer, gyro = gyro, magneto = magneto)
+        result = (timestamp = timestamp, accelerometer = accelerometer)
+        put!(to, (delta = timestamp - prev.timestamp, accelerometer = result.accelerometer))
         prev = result
-        @show result
-        put!(to, result)
     end
 end
 
 function calculateInput!(from::Channel, to::Channel)
+    x_0 = zeros(6, 1)
+    Σ_0 = Matrix{Float64}(I, 6, 6) .* 1000
+    model = Kalman(I, I, I, I, x_0, Σ_0)
     @async @loop begin
         task = take!(from)
-        # TODO Calculate Kalman
+        result = calculateKalman(task.delta, model, task.accelerometer)
+        model = result.model
+        pos = result.position
         out = Dict(
-            "timestamp" => task[1],
-            "position" => Dict("x" => 1, "y" => 2, "z" => 3)
+            "timestamp" => time(),
+            "position" => Dict("x" => pos.x, "y" => pos.y, "z" => pos.z)
         )
-        prevLine = task
         put!(to, out)
     end
 end
@@ -116,7 +113,10 @@ calculatingChannel = Channel(16)
 
 takeInput!(inputChanel)
 parseInput!(inputChanel, calculatingChannel)
-# calculateInput!(calculatingChannel, outputChannel)
-# sendToRenderer!(outputChannel, 2000)
+calculateInput!(calculatingChannel, outputChannel)
+sendToRenderer!(outputChannel, 2000)
 
-@loop sleep(10)
+@loop begin
+    sleep(10)
+    @show "Running"
+end
