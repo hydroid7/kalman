@@ -170,7 +170,7 @@ See also [`Kalman`](@ref)
 """
 function dimension_helper(k::Kalman)
     if isa(k.A, Matrix)
-        ( measurement = (size(k.G)[2], 1), control_signal = (size(k.B)[2], 1) )
+        ( measurement = (size(k.G)[1], 1), control_signal = (size(k.B)[1], 1) )
     else
         @warn "Your model contains only scalars. `y` and `u` should be also scalars."
         ( measurement = (1, 1), control_signal = (1, 1) )
@@ -267,8 +267,8 @@ end
 Compute the filtered distribution.
 """
 function fusion(k::Kalman, y)
-    if size(y) != dimension_helper(newInstance).measurement
-        @warn "The dimension of the measurement or the measurement matrix doesn't match."
+    if size(y)[1] != dimension_helper(k).measurement[1]
+        @warn "The dimension of the measurement or the measurement matrix doesn't match. Y is $(size(y)) instead of $(dimension_helper(k).measurement)"
     end
     g = K(k.Σ, k.G, k.R)
     k.x̂ = k.x̂ + g * (y - k.G * k.x̂)
@@ -282,7 +282,7 @@ end
 Predict next state based on the model.
 """
 function predict(k::Kalman, u)
-    if size(u) != dimension_helper(newInstance).control_signal
+    if size(u)[1] != dimension_helper(k).control_signal[1]
         @warn "The dimension of the control_signal `u` or the signal mapping matrix `B` doesn't match."
     end
     k.x̂ = k.A * k.x̂ + k.B * k.u
