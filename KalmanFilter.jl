@@ -145,7 +145,7 @@ mutable struct Kalman
     Creates a Kalman-Filter object without control signal mapping matrix.
 
     """
-    Kalman(A::Matrix, Q::Matrix, G::Matrix, R::Matrix, x̂::Vector, Σ::Matrix) = new(A, Q, G, R, x̂, Σ, I)
+    Kalman(A::Matrix, Q::Matrix, G::Matrix, R::Matrix, x̂::Vector, Σ::Matrix) = Kalman(A, Q, G, R, x̂, Σ, zeros(size(A)))
 
     """
     Creates a Kalman-Filter object with optional control signal mapping matrix `B` for the scalar case without dimension checking.
@@ -267,6 +267,9 @@ end
 Compute the filtered distribution.
 """
 function fusion(k::Kalman, y)
+    if size(y) != dimension_helper(newInstance).measurement
+        @warn "The dimension of the measurement or the measurement matrix doesn't match."
+    end
     g = K(k.Σ, k.G, k.R)
     k.x̂ = k.x̂ + g * (y - k.G * k.x̂)
     k.Σ = (I - g * k.G) * k.Σ * transpose(I - g * k.G) + g * k.R * transpose(g)
@@ -279,6 +282,9 @@ end
 Predict next state based on the model.
 """
 function predict(k::Kalman, u)
+    if size(u) != dimension_helper(newInstance).control_signal
+        @warn "The dimension of the control_signal `u` or the signal mapping matrix `B` doesn't match."
+    end
     k.x̂ = k.A * k.x̂ + k.B * k.u
     k.Σ = k.A * k.Σ * transpose(k.A) + k.Q
     (state=k.x̂, cov=k.Σ)
