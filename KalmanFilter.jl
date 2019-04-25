@@ -172,7 +172,6 @@ function dimension_helper(k::Kalman)
     if isa(k.A, Matrix)
         ( measurement = (size(k.G)[1], 1), control_signal = (size(k.B)[1], 1) )
     else
-        @warn "Your model contains only scalars. `y` and `u` should be also scalars."
         ( measurement = (1, 1), control_signal = (1, 1) )
     end
 end
@@ -267,9 +266,6 @@ end
 Compute the filtered distribution.
 """
 function fusion(k::Kalman, y)
-    if size(y)[1] != dimension_helper(k).measurement[1]
-        @warn "The dimension of the measurement or the measurement matrix doesn't match. Y is $(size(y)) instead of $(dimension_helper(k).measurement)"
-    end
     g = K(k.Σ, k.G, k.R)
     k.x̂ = k.x̂ + g * (y - k.G * k.x̂)
     k.Σ = (I - g * k.G) * k.Σ * transpose(I - g * k.G) + g * k.R * transpose(g)
